@@ -1,112 +1,294 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useLocalSearchParams, router } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  View,
+  Text,
+  TextInput,
+  FlatList,
+  Alert,
+  TouchableOpacity,
+  StyleSheet,
+} from "react-native";
+import { supabase } from "../lib/supabase";
 
-import { Collapsible } from '@/components/ui/collapsible';
-import { ExternalLink } from '@/components/external-link';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Fonts } from '@/constants/theme';
+export default function Explore() {
+  const { role } = useLocalSearchParams();
+  const isManager = role === "manager";
 
-export default function TabTwoScreen() {
+  const [products, setProducts] = useState<any[]>([]);
+
+  const [name, setName] = useState("");
+  const [price, setPrice] = useState("");
+  const [desc, setDesc] = useState("");
+
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editPrice, setEditPrice] = useState("");
+  const [editDesc, setEditDesc] = useState("");
+
+  async function loadProducts() {
+    const { data, error } = await supabase.from("products").select("*");
+    if (error) {
+      Alert.alert("Erro", "Não foi possível carregar os produtos.");
+      return;
+    }
+    setProducts(data || []);
+  }
+
+  async function addProduct() {
+    if (!isManager) return;
+
+    if (!name.trim() || !price.trim() || !desc.trim()) {
+      Alert.alert("Erro", "Preencha todos os campos.");
+      return;
+    }
+
+    const { error } = await supabase.from("products").insert({
+      title: name,
+      price: Number(price),
+      description: desc,
+    });
+
+    if (error) {
+      Alert.alert("Erro", "Não foi possível adicionar.");
+      return;
+    }
+
+    setName("");
+    setPrice("");
+    setDesc("");
+    loadProducts();
+  }
+
+  async function deleteProduct(id: number) {
+    if (!isManager) return;
+    await supabase.from("products").delete().eq("id", id);
+    loadProducts();
+  }
+
+  async function saveEdit(id: number) {
+    if (!editName.trim() || !editPrice.trim() || !editDesc.trim()) {
+      Alert.alert("Erro", "Preencha todos os campos.");
+      return;
+    }
+
+    await supabase
+      .from("products")
+      .update({
+        title: editName,
+        price: Number(editPrice),
+        description: editDesc,
+      })
+      .eq("id", id);
+
+    setEditingId(null);
+    setEditName("");
+    setEditPrice("");
+    setEditDesc("");
+    loadProducts();
+  }
+
+  useEffect(() => {
+    loadProducts();
+  }, []);
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#D0D0D0', dark: '#353636' }}
-      headerImage={
-        <IconSymbol
-          size={310}
-          color="#808080"
-          name="chevron.left.forwardslash.chevron.right"
-          style={styles.headerImage}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText
-          type="title"
-          style={{
-            fontFamily: Fonts.rounded,
-          }}>
-          Explore
-        </ThemedText>
-      </ThemedView>
-      <ThemedText>This app includes example code to help you get started.</ThemedText>
-      <Collapsible title="File-based routing">
-        <ThemedText>
-          This app has two screens:{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">app/(tabs)/explore.tsx</ThemedText>
-        </ThemedText>
-        <ThemedText>
-          The layout file in <ThemedText type="defaultSemiBold">app/(tabs)/_layout.tsx</ThemedText>{' '}
-          sets up the tab navigator.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/router/introduction">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Android, iOS, and web support">
-        <ThemedText>
-          You can open this project on Android, iOS, and the web. To open the web version, press{' '}
-          <ThemedText type="defaultSemiBold">w</ThemedText> in the terminal running this project.
-        </ThemedText>
-      </Collapsible>
-      <Collapsible title="Images">
-        <ThemedText>
-          For static images, you can use the <ThemedText type="defaultSemiBold">@2x</ThemedText> and{' '}
-          <ThemedText type="defaultSemiBold">@3x</ThemedText> suffixes to provide files for
-          different screen densities
-        </ThemedText>
-        <Image
-          source={require('@/assets/images/react-logo.png')}
-          style={{ width: 100, height: 100, alignSelf: 'center' }}
-        />
-        <ExternalLink href="https://reactnative.dev/docs/images">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Light and dark mode components">
-        <ThemedText>
-          This template has light and dark mode support. The{' '}
-          <ThemedText type="defaultSemiBold">useColorScheme()</ThemedText> hook lets you inspect
-          what the user&apos;s current color scheme is, and so you can adjust UI colors accordingly.
-        </ThemedText>
-        <ExternalLink href="https://docs.expo.dev/develop/user-interface/color-themes/">
-          <ThemedText type="link">Learn more</ThemedText>
-        </ExternalLink>
-      </Collapsible>
-      <Collapsible title="Animations">
-        <ThemedText>
-          This template includes an example of an animated component. The{' '}
-          <ThemedText type="defaultSemiBold">components/HelloWave.tsx</ThemedText> component uses
-          the powerful{' '}
-          <ThemedText type="defaultSemiBold" style={{ fontFamily: Fonts.mono }}>
-            react-native-reanimated
-          </ThemedText>{' '}
-          library to create a waving hand animation.
-        </ThemedText>
-        {Platform.select({
-          ios: (
-            <ThemedText>
-              The <ThemedText type="defaultSemiBold">components/ParallaxScrollView.tsx</ThemedText>{' '}
-              component provides a parallax effect for the header image.
-            </ThemedText>
-          ),
-        })}
-      </Collapsible>
-    </ParallaxScrollView>
+    <View style={styles.container}>
+      <TouchableOpacity style={styles.backBtn} onPress={() => router.push("/")}>
+        <Text style={styles.backText}>← Voltar</Text>
+      </TouchableOpacity>
+
+      <Text style={styles.title}>
+        {isManager ? "Gestor - Produtos" : "Cliente - Produtos"}
+      </Text>
+
+      {isManager && (
+        <View style={styles.formBox}>
+          <Text style={styles.sectionTitle}>Adicionar produto</Text>
+
+          <TextInput
+            placeholder="Nome"
+            value={name}
+            onChangeText={setName}
+            style={styles.input}
+          />
+
+          <TextInput
+            placeholder="Preço"
+            value={price}
+            onChangeText={setPrice}
+            keyboardType="numeric"
+            style={styles.input}
+          />
+
+          <TextInput
+            placeholder="Descrição"
+            value={desc}
+            onChangeText={setDesc}
+            style={styles.input}
+          />
+
+          <TouchableOpacity style={styles.btn} onPress={addProduct}>
+            <Text style={styles.btnText}>Adicionar</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <Text style={styles.sectionTitle}>Produtos cadastrados:</Text>
+
+      <FlatList
+        data={products}
+        keyExtractor={(item) => item.id.toString()}
+        renderItem={({ item }) => (
+          <View style={styles.card}>
+            {editingId === item.id ? (
+              <>
+                <TextInput
+                  value={editName}
+                  onChangeText={setEditName}
+                  placeholder="Novo nome"
+                  style={styles.input}
+                />
+
+                <TextInput
+                  value={editPrice}
+                  onChangeText={setEditPrice}
+                  placeholder="Novo preço"
+                  keyboardType="numeric"
+                  style={styles.input}
+                />
+
+                <TextInput
+                  value={editDesc}
+                  onChangeText={setEditDesc}
+                  placeholder="Nova descrição"
+                  style={styles.input}
+                />
+
+                <TouchableOpacity
+                  style={styles.btn}
+                  onPress={() => saveEdit(item.id)}
+                >
+                  <Text style={styles.btnText}>Salvar</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={styles.cardTitle}>{item.title}</Text>
+                <Text style={styles.cardText}>Preço: R$ {item.price}</Text>
+                <Text style={styles.cardText}>Descrição: {item.description}</Text>
+
+                {isManager && (
+                  <>
+                    <TouchableOpacity
+                      style={styles.smallBtn}
+                      onPress={() => {
+                        setEditingId(item.id);
+                        setEditName(item.title);
+                        setEditPrice(String(item.price));
+                        setEditDesc(item.description);
+                      }}
+                    >
+                      <Text style={styles.smallBtnText}>Editar</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={[styles.smallBtn, { backgroundColor: "#ff4444" }]}
+                      onPress={() => deleteProduct(item.id)}
+                    >
+                      <Text style={styles.smallBtnText}>Excluir</Text>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </>
+            )}
+          </View>
+        )}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  headerImage: {
-    color: '#808080',
-    bottom: -90,
-    left: -35,
-    position: 'absolute',
+  container: {
+    flex: 1,
+    padding: 20,
+    backgroundColor: "#e6f0ff",
   },
-  titleContainer: {
-    flexDirection: 'row',
-    gap: 8,
+  backBtn: {
+    backgroundColor: "#3366ff",
+    padding: 10,
+    borderRadius: 10,
+    width: 120,
+    marginBottom: 15,
+  },
+  backText: {
+    color: "white",
+    textAlign: "center",
+    fontWeight: "bold",
+  },
+  title: {
+    fontSize: 22,
+    textAlign: "center",
+    marginBottom: 20,
+    color: "#003366",
+    fontWeight: "bold",
+  },
+  sectionTitle: {
+    fontSize: 18,
+    marginBottom: 10,
+    fontWeight: "bold",
+    color: "#003366",
+  },
+  formBox: {
+    marginBottom: 20,
+    backgroundColor: "white",
+    padding: 15,
+    borderRadius: 12,
+    elevation: 3,
+  },
+  input: {
+    borderWidth: 1,
+    padding: 10,
+    marginBottom: 10,
+    backgroundColor: "white",
+    borderRadius: 10,
+    borderColor: "#99b3ff",
+  },
+  btn: {
+    backgroundColor: "#3366ff",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+  },
+  btnText: {
+    color: "white",
+    fontWeight: "bold",
+  },
+  card: {
+    padding: 12,
+    marginBottom: 10,
+    backgroundColor: "white",
+    borderRadius: 12,
+    elevation: 3,
+  },
+  cardTitle: {
+    fontSize: 18,
+    fontWeight: "bold",
+    color: "#003366",
+  },
+  cardText: {
+    marginBottom: 5,
+  },
+  smallBtn: {
+    backgroundColor: "#3366ff",
+    padding: 8,
+    borderRadius: 8,
+    marginTop: 6,
+    alignItems: "center",
+  },
+  smallBtnText: {
+    color: "white",
+    fontWeight: "bold",
   },
 });
